@@ -7,8 +7,6 @@ v0 includes:
 - In-memory job queue + worker pool
 - Task registry + simple prefix router
 - CLI adapter
-<<<<<<< HEAD
-<<<<<<< HEAD
 - Discord adapter (discordgo)
 
 ## Commands (v0)
@@ -145,4 +143,3 @@ cargo run -- --mode=telegram
 - `--mode=auto|cli|discord|telegram|daemon` (default: `auto`)
 - `--queue-size=128` (default: `128`)
 - `--shutdown-timeout=10s` (examples: `500ms`, `10s`, `1m`)
->>>>>>> 4f43926 (feat: add daemon mode for 24/7 operation)
