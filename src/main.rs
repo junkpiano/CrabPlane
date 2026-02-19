@@ -12,7 +12,7 @@ use std::io::IsTerminal;
 use std::sync::{Arc, atomic::AtomicBool};
 use std::time::Duration;
 
-use adapters::{cli, discord, telegram};
+use adapters::{cli, discord, telegram, whatsapp};
 use engine::{Core, Engine, ResultSink};
 use queue::Queue;
 use registry::Registry;
@@ -40,7 +40,7 @@ impl ResultSink for LogSink {
 
 #[derive(Clone, Debug)]
 struct Args {
-    mode: String, // auto|cli|discord|telegram|daemon
+    mode: String, // auto|cli|discord|telegram|whatsapp|daemon
     queue_size: usize,
     shutdown_timeout: Duration,
 }
@@ -95,6 +95,19 @@ fn main() {
             let _ = telegram::Adapter::close(&*a);
             graceful_shutdown(&stop, args.shutdown_timeout, &core);
         }
+        "whatsapp" => {
+            let account_sid = env::var("TWILIO_ACCOUNT_SID").unwrap_or_default();
+            let auth_token = env::var("TWILIO_AUTH_TOKEN").unwrap_or_default();
+            let from_number = env::var("TWILIO_WHATSAPP_NUMBER").unwrap_or_default();
+            // Create engine first, then attach the WhatsApp adapter as a ResultSink.
+            let core = Core::new(router, reg, pool, results_rx, None);
+            let eng: Arc<dyn Engine> = core.clone();
+            let a = Arc::new(whatsapp::Adapter::new(account_sid, auth_token, from_number, eng));
+            core.set_sink(Some(a.clone()));
+            let _ = whatsapp::Adapter::run(&*a, &stop);
+            let _ = whatsapp::Adapter::close(&*a);
+            graceful_shutdown(&stop, args.shutdown_timeout, &core);
+        }
         "daemon" => {
             let sink = Arc::new(LogSink);
             let core = Core::new(router, reg, pool, results_rx, Some(sink));
@@ -121,6 +134,8 @@ fn select_mode(mode: &str) -> String {
     if selected == "auto" {
         if env::var("DISCORD_TOKEN").unwrap_or_default() != "" {
             selected = "discord".to_string();
+        } else if env::var("TWILIO_WHATSAPP_NUMBER").unwrap_or_default() != "" {
+            selected = "whatsapp".to_string();
         } else if env::var("TELEGRAM_BOT_TOKEN").unwrap_or_default() != "" {
             selected = "telegram".to_string();
         } else if std::io::stdin().is_terminal() {
@@ -212,7 +227,7 @@ fn parse_duration(s: &str) -> Option<Duration> {
 
 fn print_help_and_exit() -> ! {
     println!("clawplane v0 (rust port)");
-    println!("  -mode auto|cli|discord|telegram|daemon (default: auto)");
+    println!("  -mode auto|cli|discord|telegram|whatsapp|daemon (default: auto)");
     println!("  -queue-size N (default: 128)");
     println!("  -shutdown-timeout 10s|500ms|1m (default: 10s)");
     std::process::exit(0);
