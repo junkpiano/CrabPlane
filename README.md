@@ -7,50 +7,16 @@ v0 includes:
 - In-memory job queue + worker pool
 - Task registry + simple prefix router
 - CLI adapter
-- Discord adapter (discordgo)
-
-## Commands (v0)
-
-- `!ping` -> `pong`
-- `!echo <text>` -> echoes text
-
-## Run (CLI)
-
-```bash
-mise install
-export CRABPLANE_CONCURRENCY=4
-mise exec -- go run ./cmd/crabplane -mode=cli
-```
-
-## Run (Daemon)
-
-```bash
-mise install
-export CRABPLANE_CONCURRENCY=4
-mise exec -- go run ./cmd/crabplane -mode=daemon
-```
-
-## Run (Discord)
-
-```bash
-mise install
-export DISCORD_TOKEN="YOUR_TOKEN"
-export CRABPLANE_CONCURRENCY=4
-mise exec -- go run ./cmd/crabplane -mode=discord
-```
-=======
-- Discord adapter
-=======
->>>>>>> ac0b840 (feat: project rename)
 - Telegram adapter
 - Discord adapter stub (token check only; runtime not implemented in this Rust port)
-- Pluggable AI backend for default chat execution (`openai`, `anthropic`, `codex`, `claude-code`)
+- Pluggable AI backend for default chat execution (`openai`, `openai-codex-api`, `anthropic`, `codex`, `claude-code`)
 
 ## Commands (v0)
 
 - `/help` (Telegram only) -> show bot help
 - `!ping` -> `pong`
 - `!echo <text>` -> echoes text
+- `!onboard [chat|ai|all]` -> setup checklist for chat tools and AI providers
 - `!ask <prompt>` -> sends prompt to backend selected by `CRABPLANE_AI_BACKEND`
 - Any other non-empty message -> sent to backend selected by `CRABPLANE_AI_BACKEND`
 
@@ -88,8 +54,8 @@ cargo run
 
 ```bash
 export CRABPLANE_CONCURRENCY=4
-export CRABPLANE_AI_BACKEND="codex" # openai|anthropic|codex|claude-code
-export OPENAI_API_KEY="YOUR_OPENAI_API_KEY" # required when backend=openai
+export CRABPLANE_AI_BACKEND="codex" # openai|openai-codex-api|anthropic|codex|claude-code
+export OPENAI_API_KEY="YOUR_OPENAI_API_KEY" # required when backend=openai|openai-codex-api
 export ANTHROPIC_API_KEY="YOUR_ANTHROPIC_API_KEY" # required when backend=anthropic
 cargo run -- --mode=cli
 ```
@@ -115,8 +81,8 @@ Current status: the Rust Discord adapter is a stub and returns a not-implemented
 
 ```bash
 export TELEGRAM_BOT_TOKEN="YOUR_BOT_TOKEN"
-export CRABPLANE_AI_BACKEND="codex" # openai|anthropic|codex|claude-code
-export OPENAI_API_KEY="YOUR_OPENAI_API_KEY" # required when backend=openai
+export CRABPLANE_AI_BACKEND="codex" # openai|openai-codex-api|anthropic|codex|claude-code
+export OPENAI_API_KEY="YOUR_OPENAI_API_KEY" # required when backend=openai|openai-codex-api
 export ANTHROPIC_API_KEY="YOUR_ANTHROPIC_API_KEY" # required when backend=anthropic
 export CRABPLANE_CONCURRENCY=4
 cargo run -- --mode=telegram
@@ -125,13 +91,18 @@ cargo run -- --mode=telegram
 ## AI Backend Configuration
 
 - `CRABPLANE_AI_BACKEND` (optional, default: `codex`)
-- `CRABPLANE_CODEX_CMD` (optional, default: `codex exec --skip-git-repo-check`)
+- `CRABPLANE_CODEX_CMD` (optional, default: `codex exec --skip-git-repo-check`; if unset, falls back to `mise exec -- codex ...` when `codex` is not on `PATH`)
 - `CRABPLANE_CLAUDE_CODE_CMD` (optional, default: `claude -p`)
 
 ## OpenAI API Configuration
 
-- `OPENAI_API_KEY` (required when backend is `openai`)
+- `OPENAI_API_KEY` (required when backend is `openai` or `openai-codex-api`)
 - `OPENAI_MODEL` (optional, default: `gpt-5.3-codex`)
+
+## OpenAI Codex API Configuration
+
+- `OPENAI_API_KEY` (required when backend is `openai-codex-api`)
+- `OPENAI_CODEX_MODEL` (optional, default: `gpt-5.3-codex`)
 
 ## Anthropic API Configuration
 

@@ -1,10 +1,12 @@
 mod echo;
+mod onboarding;
 mod openai;
 mod ping;
 
 use crate::types::TaskInput;
 
 pub use echo::EchoTask;
+pub use onboarding::OnboardingTask;
 pub use openai::OpenAiTask;
 pub use ping::PingTask;
 

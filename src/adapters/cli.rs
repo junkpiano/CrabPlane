@@ -24,7 +24,7 @@ impl Adapter {
             let mut out = self.out.lock().unwrap();
             writeln!(
                 out,
-                "Crabplane CLI. Try: !ping, !echo hello, or !ask <prompt>"
+                "Crabplane CLI. Try: !ping, !echo hello, !onboard, or !ask <prompt>"
             )?;
         }
 

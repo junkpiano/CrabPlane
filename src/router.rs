@@ -17,6 +17,7 @@ pub trait Router: Send + Sync {
 // - !ping
 // - !echo <text>
 // - !ask <prompt>
+// - !onboard [chat|ai|all]
 // - any other non-empty message -> default ask task (selected backend)
 #[derive(Clone, Debug, Default)]
 pub struct PrefixRouter;
@@ -60,6 +61,18 @@ impl Router for PrefixRouter {
             return Ok(Some(Route {
                 task_name: "ask".to_string(),
                 input: TaskInput::Text(rest.to_string()),
+            }));
+        }
+
+        if let Some(rest) = text.strip_prefix("!onboard") {
+            let rest = rest.trim();
+            return Ok(Some(Route {
+                task_name: "onboard".to_string(),
+                input: if rest.is_empty() {
+                    TaskInput::Empty
+                } else {
+                    TaskInput::Text(rest.to_string())
+                },
             }));
         }
 

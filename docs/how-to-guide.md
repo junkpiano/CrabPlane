@@ -21,7 +21,7 @@ Use this for local testing without external services.
 
 ```bash
 export CRABPLANE_CONCURRENCY=4
-export CRABPLANE_AI_BACKEND="codex" # openai|anthropic|codex|claude-code
+export CRABPLANE_AI_BACKEND="codex" # openai|openai-codex-api|anthropic|codex|claude-code
 cargo run -- -mode=cli
 ```
 
@@ -29,6 +29,8 @@ Try commands:
 
 - `!ping`
 - `!echo hello`
+- `!onboard` (setup checklist for chat tools + AI providers)
+- `!onboard chat` / `!onboard ai` (scope the checklist)
 - `!ask explain rust ownership in one sentence`
 - `what is clawplane?` (non-command messages are routed to backend from `CRABPLANE_AI_BACKEND`)
 
@@ -44,8 +46,8 @@ Try commands:
 
 ```bash
 export TELEGRAM_BOT_TOKEN="YOUR_BOT_TOKEN"
-export CRABPLANE_AI_BACKEND="codex" # openai|anthropic|codex|claude-code
-export OPENAI_API_KEY="YOUR_OPENAI_API_KEY" # required when backend=openai
+export CRABPLANE_AI_BACKEND="codex" # openai|openai-codex-api|anthropic|codex|claude-code
+export OPENAI_API_KEY="YOUR_OPENAI_API_KEY" # required when backend=openai|openai-codex-api
 export ANTHROPIC_API_KEY="YOUR_ANTHROPIC_API_KEY" # required when backend=anthropic
 export CRABPLANE_CONCURRENCY=4
 cargo run -- -mode=telegram
@@ -84,8 +86,9 @@ If you run with `-mode=auto`:
 - `TELEGRAM_BOT_TOKEN is empty`: set the env var before running.
 - `failed to execute curl`: install `curl` and ensure it is on your `PATH`.
 - `OPENAI_API_KEY is empty`: set the env var before running `!ask`.
+- `OPENAI_CODEX_MODEL`: optional override when `CRABPLANE_AI_BACKEND=openai-codex-api`.
 - `ANTHROPIC_API_KEY is empty`: set the env var when `CRABPLANE_AI_BACKEND=anthropic`.
-- `codex command failed`: ensure `codex` is installed, or set `CRABPLANE_CODEX_CMD`.
+- `codex command failed`: ensure `codex` is installed; if installed via `mise`, default fallback now retries with `mise exec -- ...`. You can always set `CRABPLANE_CODEX_CMD` explicitly.
 - `claude code command failed`: ensure `claude` is installed, or set `CRABPLANE_CLAUDE_CODE_CMD`.
 - No bot replies:
   - Verify token is valid.

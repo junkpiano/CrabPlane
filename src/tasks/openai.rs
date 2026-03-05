@@ -4,6 +4,9 @@ use std::process::Command;
 use crate::tasks::{Task, TaskContext, TaskOutput};
 use crate::types::TaskInput;
 
+#[path = "openai-codex-api.rs"]
+mod openai_codex_api;
+
 #[derive(Default)]
 pub struct OpenAiTask;
 
@@ -35,6 +38,9 @@ impl Task for OpenAiTask {
         let backend = env::var("CRABPLANE_AI_BACKEND").unwrap_or_else(|_| "codex".to_string());
         let out = match backend.trim().to_ascii_lowercase().as_str() {
             "openai" => ask_openai_api(&prompt),
+            "openai-codex-api" | "openai_codex_api" | "codex-api" | "codex_api" => {
+                openai_codex_api::ask_openai_codex_api(&prompt)
+            }
             "anthropic" | "claude-api" | "claude_api" => ask_anthropic_api(&prompt),
             "codex" => ask_cli_backend(
                 &prompt,
@@ -49,7 +55,7 @@ impl Task for OpenAiTask {
                 "claude code",
             ),
             other => Err(format!(
-                "unknown CRABPLANE_AI_BACKEND: {other} (expected: openai|anthropic|codex|claude-code)"
+                "unknown CRABPLANE_AI_BACKEND: {other} (expected: openai|openai-codex-api|anthropic|codex|claude-code)"
             )),
         }?;
 
@@ -62,11 +68,20 @@ impl Task for OpenAiTask {
 }
 
 fn ask_openai_api(prompt: &str) -> Result<String, String> {
+    ask_openai_responses(prompt, "OPENAI_MODEL", "gpt-5.3-codex", "openai")
+}
+
+fn ask_openai_responses(
+    prompt: &str,
+    model_env: &str,
+    default_model: &str,
+    label: &str,
+) -> Result<String, String> {
     let api_key = env::var("OPENAI_API_KEY").unwrap_or_default();
     if api_key.is_empty() {
         return Err("OPENAI_API_KEY is empty".to_string());
     }
-    let model = env::var("OPENAI_MODEL").unwrap_or_else(|_| "gpt-5.3-codex".to_string());
+    let model = env::var(model_env).unwrap_or_else(|_| default_model.to_string());
 
     let body = format!(
         "{{\"model\":\"{}\",\"input\":\"{}\"}}",
@@ -93,11 +108,12 @@ fn ask_openai_api(prompt: &str) -> Result<String, String> {
 
     if !out.status.success() {
         let stderr = String::from_utf8_lossy(&out.stderr);
-        return Err(format!("openai request failed: {}", stderr.trim()));
+        return Err(format!("{label} request failed: {}", stderr.trim()));
     }
 
     let raw = String::from_utf8_lossy(&out.stdout);
-    extract_first_text(&raw).ok_or_else(|| "openai response did not include text output".to_string())
+    extract_first_text(&raw)
+        .ok_or_else(|| format!("{label} response did not include text output"))
 }
 
 fn ask_anthropic_api(prompt: &str) -> Result<String, String> {
@@ -147,21 +163,61 @@ fn ask_cli_backend(
     default_cmd: &str,
     label: &str,
 ) -> Result<String, String> {
-    let cmd = env::var(cmd_var).unwrap_or_else(|_| default_cmd.to_string());
+    let configured = env::var(cmd_var)
+        .ok()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty());
+
+    let base_cmd = configured
+        .as_ref()
+        .cloned()
+        .unwrap_or_else(|| default_cmd.to_string());
+    let mut attempts = vec![base_cmd.clone()];
+    if configured.is_none() {
+        attempts.extend(mise_fallback_commands(&base_cmd));
+    }
+
+    let mut last_not_found: Option<String> = None;
+    for (idx, cmd) in attempts.iter().enumerate() {
+        match run_cli_command(prompt, cmd, label) {
+            Ok(out) => return Ok(out),
+            Err(err) => {
+                let has_next = idx + 1 < attempts.len();
+                if has_next && is_command_not_found(&err.stderr) {
+                    last_not_found = Some(err.message);
+                    continue;
+                }
+                return Err(err.message);
+            }
+        }
+    }
+
+    Err(last_not_found.unwrap_or_else(|| format!("{label} command failed")))
+}
+
+struct CliCommandError {
+    message: String,
+    stderr: String,
+}
+
+fn run_cli_command(prompt: &str, cmd: &str, label: &str) -> Result<String, CliCommandError> {
     let full = format!("{} '{}'", cmd, escape_single_quotes(prompt));
     let out = Command::new("sh")
         .args(["-lc", &full])
         .output()
-        .map_err(|e| format!("failed to execute {label} command: {e}"))?;
+        .map_err(|e| CliCommandError {
+            message: format!("failed to execute {label} command: {e}"),
+            stderr: String::new(),
+        })?;
 
     if !out.status.success() {
-        let stderr = String::from_utf8_lossy(&out.stderr);
-        let msg = stderr.trim();
-        return Err(if msg.is_empty() {
+        let stderr = String::from_utf8_lossy(&out.stderr).trim().to_string();
+        let message = if stderr.is_empty() {
             format!("{label} command failed with status {}", out.status)
         } else {
-            format!("{label} command failed: {msg}")
-        });
+            format!("{label} command failed: {stderr}")
+        };
+        return Err(CliCommandError { message, stderr });
     }
 
     let stdout = String::from_utf8_lossy(&out.stdout).to_string();
@@ -175,6 +231,18 @@ fn ask_cli_backend(
     }
 
     Ok(String::new())
+}
+
+fn is_command_not_found(stderr: &str) -> bool {
+    let s = stderr.to_ascii_lowercase();
+    s.contains("command not found") || s.ends_with(": not found")
+}
+
+fn mise_fallback_commands(base_cmd: &str) -> Vec<String> {
+    vec![
+        format!("mise exec -- {base_cmd}"),
+        format!("$HOME/.local/bin/mise exec -- {base_cmd}"),
+    ]
 }
 
 fn escape_single_quotes(s: &str) -> String {

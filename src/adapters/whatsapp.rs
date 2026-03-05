@@ -251,6 +251,7 @@ fn whatsapp_help_text() -> &'static str {
      /help - show this help\n\
      !ping - reply with pong\n\
      !echo <text> - echo back text\n\
+     !onboard [chat|ai|all] - show setup checklist\n\
      !ask <prompt> - run prompt via CRABPLANE_AI_BACKEND\n\
      Any non-command message is routed to !ask."
 }

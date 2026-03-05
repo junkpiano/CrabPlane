@@ -17,7 +17,7 @@ use engine::{Core, Engine, ResultSink};
 use queue::Queue;
 use registry::Registry;
 use router::PrefixRouter;
-use tasks::{EchoTask, OpenAiTask, PingTask, Task};
+use tasks::{EchoTask, OnboardingTask, OpenAiTask, PingTask, Task};
 use unix_signal::install_unix_signal_handlers;
 use worker::Pool;
 
@@ -57,6 +57,7 @@ fn main() {
     must(reg.register(Arc::new(PingTask::new()) as Arc<dyn Task>));
     must(reg.register(Arc::new(EchoTask::new()) as Arc<dyn Task>));
     must(reg.register(Arc::new(OpenAiTask::new()) as Arc<dyn Task>));
+    must(reg.register(Arc::new(OnboardingTask::new()) as Arc<dyn Task>));
 
     let q = Arc::new(Queue::new(args.queue_size));
     let (pool, results_rx) = Pool::new(Arc::clone(&reg), Arc::clone(&q), conc);
